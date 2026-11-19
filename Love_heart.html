@@ -1,0 +1,387 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A Little Love Letter ❤️</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #090309;
+    color: white;
+    font-family: Arial, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ENVELOPE SCREEN */
+#intro {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 35px;
+    transition: opacity 1s ease;
+}
+
+.heading {
+    color: #ffb6c9;
+    font-size: 24px;
+    letter-spacing: 2px;
+    text-align: center;
+}
+
+.envelope {
+    position: relative;
+    width: 280px;
+    height: 180px;
+    cursor: pointer;
+    background: #e99bb1;
+    border-radius: 5px;
+    box-shadow: 0 0 35px #ff69b455;
+    perspective: 900px;
+}
+
+.envelope-body {
+    position: absolute;
+    inset: 0;
+    background: #f2b5c5;
+    clip-path: polygon(0 0, 50% 60%, 100% 0, 100% 100%, 0 100%);
+    z-index: 3;
+}
+
+.envelope-flap {
+    position: absolute;
+    inset: 0;
+    background: #d97e9d;
+    clip-path: polygon(0 0, 100% 0, 50% 58%);
+    transform-origin: top;
+    transition: transform 0.9s ease;
+    z-index: 4;
+}
+
+.seal {
+    position: absolute;
+    width: 45px;
+    height: 45px;
+    background: #b83263;
+    border-radius: 50%;
+    top: 70px;
+    left: 117px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 23px;
+    z-index: 5;
+    box-shadow: 0 0 15px #ff69b4;
+    transition: opacity 0.4s;
+}
+
+.envelope.opened .envelope-flap {
+    transform: rotateX(180deg);
+    z-index: 1;
+}
+
+.envelope.opened .seal {
+    opacity: 0;
+}
+
+.click-text {
+    color: #ffb6c9;
+    font-size: 14px;
+    letter-spacing: 2px;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    50% { opacity: 0.45; }
+}
+
+/* HEART SCREEN */
+#heartScreen {
+    display: none;
+    width: 100%;
+    height: 100vh;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+#heartCanvas {
+    width: 100%;
+    height: 100%;
+}
+
+#finalMessage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 2s ease;
+    pointer-events: none;
+}
+
+#finalMessage.visible {
+    opacity: 1;
+}
+
+.love-text {
+    color: #ffb6d0;
+    font-family: Arial, sans-serif;
+    font-size: 30px;
+    font-weight: bold;
+    text-shadow: 0 0 15px #ff1493;
+}
+
+.pulsing-heart {
+    color: #ff1493;
+    font-size: 75px;
+    margin-top: 10px;
+    text-shadow: 0 0 25px #ff1493;
+    animation: heartbeat 1s infinite;
+}
+
+@keyframes heartbeat {
+    0%, 100% { transform: scale(1); }
+    25% { transform: scale(1.3); }
+    40% { transform: scale(1); }
+    60% { transform: scale(1.2); }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ENVELOPE -->
+<div id="intro">
+
+    <div class="heading">
+        You've Got a Little Love Letter
+    </div>
+
+    <div class="envelope" id="envelope"
+         role="button" tabindex="0"
+         aria-label="Open your love letter">
+
+        <div class="envelope-body"></div>
+        <div class="envelope-flap"></div>
+        <div class="seal">♥</div>
+
+    </div>
+
+    <div class="click-text">
+        CLICK TO OPEN ❤️
+    </div>
+
+</div>
+
+<!-- HEART ANIMATION -->
+<div id="heartScreen">
+    <canvas id="heartCanvas"></canvas>
+    <div id="finalMessage">
+    <div class="love-text">I Love You Joe!</div>
+    <div class="pulsing-heart">♥</div>
+</div>
+
+<script>
+
+
+const phrases = [
+    "I Love You Joe!",
+];
+
+const envelope = document.getElementById("envelope");
+const intro = document.getElementById("intro");
+const heartScreen = document.getElementById("heartScreen");
+const finalMessage = document.getElementById("finalMessage");
+
+const canvas = document.getElementById("heartCanvas");
+const ctx = canvas.getContext("2d");
+
+let points = [];
+let index = 0;
+let started = false;
+
+// ORIGINAL ROMANTIC MELODY
+let audioContext;
+let melodyTimer;
+let noteIndex = 0;
+
+const melody = [
+    [523.25, 0.35],
+    [659.25, 0.35],
+    [783.99, 0.5],
+    [659.25, 0.35],
+    [587.33, 0.35],
+    [698.46, 0.5],
+    [659.25, 0.35],
+    [523.25, 0.7],
+    [587.33, 0.35],
+    [659.25, 0.35],
+    [783.99, 0.7]
+];
+
+function playNote(frequency, duration) {
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.value = frequency;
+
+    gain.gain.setValueAtTime(
+        0.0001,
+        audioContext.currentTime
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+        0.12,
+        audioContext.currentTime + 0.05
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        audioContext.currentTime + duration
+    );
+
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + duration);
+}
+
+function startMelody() {
+    audioContext = new (
+        window.AudioContext || window.webkitAudioContext
+    )();
+
+    audioContext.resume();
+
+    function nextNote() {
+        const [frequency, duration] =
+            melody[noteIndex % melody.length];
+
+        playNote(frequency, duration);
+
+        noteIndex++;
+
+        melodyTimer = setTimeout(nextNote, 450);
+    }
+
+    nextNote();
+}
+
+// CREATE HEART OUTLINE
+function createHeart() {
+    points = [];
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const scale = Math.min(
+        canvas.width / 40,
+        canvas.height / 35
+    );
+
+    const totalPoints = 65;
+
+    for (let i = 0; i < totalPoints; i++) {
+
+        const t = (i / totalPoints) * Math.PI * 2;
+
+        const x = 16 * Math.pow(Math.sin(t), 3);
+
+        const y =
+            13 * Math.cos(t)
+            - 5 * Math.cos(2 * t)
+            - 2 * Math.cos(3 * t)
+            - Math.cos(4 * t);
+
+        points.push({
+            x: canvas.width / 2 + x * scale,
+            y: canvas.height / 2 - y * scale
+        });
+    }
+}
+
+// DRAW WORDS
+function drawPhrase() {
+
+    if (index >= points.length) {
+        finalMessage.classList.add("visible");
+        return;
+    }
+
+    const point = points[index];
+    const phrase = phrases[index % phrases.length];
+
+    ctx.font = "bold 11px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillStyle = "#ffb6c9";
+    ctx.shadowColor = "#ff1493";
+    ctx.shadowBlur = 10;
+
+    ctx.fillText(phrase, point.x, point.y);
+
+    index++;
+
+    setTimeout(drawPhrase, 100);
+}
+
+// OPEN THE LOVE LETTER
+function openLetter() {
+
+    if (started) return;
+
+    started = true;
+
+    startMelody();
+
+    envelope.classList.add("opened");
+
+    setTimeout(() => {
+
+        intro.style.opacity = "0";
+
+        setTimeout(() => {
+
+            intro.style.display = "none";
+            heartScreen.style.display = "flex";
+
+            createHeart();
+            drawPhrase();
+
+        }, 800);
+
+    }, 1100);
+}
+
+// ENVELOPE CLICK
+envelope.addEventListener("click", openLetter);
+
+envelope.addEventListener("keydown", (event) => {
+
+    if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openLetter();
+    }
+});
+
+
+</script>
+
+</body>
+</html>
+
